@@ -13410,28 +13410,28 @@ task.spawn(function()
     end
   end)
 
-  -- Pull Maclib from the first backend that answers; fall back to weretools.xyz.
+  -- Pull Maclib from the upstream GitHub release, then fall back to the
+  -- WereTools backends (local dev server first, then weretools.xyz).
   local maclibSrc
   do
+    local sources = {
+      "https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt",
+    }
     local tried = {}
     for _, base in ipairs(BACKENDS) do
-      tried[base] = true
-      local ok, src = pcall(function()
-        return game:HttpGet(base .. "/RobloxUI/Maclib.lua?t=" .. tostring(tick()))
-      end)
-      if ok and type(src) == "string" and #src > 1000 then
-        maclibSrc = src
-        print("[WereTools] Maclib via " .. base .. " (" .. #src .. " bytes)")
-        break
-      end
+      sources[#sources + 1] = base .. "/RobloxUI/Maclib.lua?t=" .. tostring(tick())
     end
-    if not maclibSrc and not tried["https://weretools.xyz"] then
-      local ok, src = pcall(function()
-        return game:HttpGet("https://weretools.xyz/RobloxUI/Maclib.lua?t=" .. tostring(tick()))
-      end)
-      if ok and type(src) == "string" and #src > 1000 then
-        maclibSrc = src
-        print("[WereTools] Maclib via https://weretools.xyz (" .. #src .. " bytes)")
+    sources[#sources + 1] = "https://weretools.xyz/RobloxUI/Maclib.lua?t=" .. tostring(tick())
+
+    for _, url in ipairs(sources) do
+      if not tried[url] then
+        tried[url] = true
+        local ok, src = pcall(function() return game:HttpGet(url) end)
+        if ok and type(src) == "string" and #src > 1000 then
+          maclibSrc = src
+          print("[WereTools] Maclib via " .. url .. " (" .. #src .. " bytes)")
+          break
+        end
       end
     end
   end
