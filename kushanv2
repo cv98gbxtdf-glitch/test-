@@ -13410,9 +13410,7 @@ task.spawn(function()
     end
   end)
 
-  -- Pull Maclib from the first backend that answers; fall back to weretools.xyz,
-  -- then to the official biggaboy212/Maclib GitHub release.
-  local MACLIB_GITHUB = "https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"
+  -- Pull Maclib from the first backend that answers; fall back to weretools.xyz.
   local maclibSrc
   do
     local tried = {}
@@ -13436,18 +13434,9 @@ task.spawn(function()
         print("[WereTools] Maclib via https://weretools.xyz (" .. #src .. " bytes)")
       end
     end
-    if not maclibSrc then
-      local ok, src = pcall(function()
-        return game:HttpGet(MACLIB_GITHUB)
-      end)
-      if ok and type(src) == "string" and #src > 1000 then
-        maclibSrc = src
-        print("[WereTools] Maclib via biggaboy212/Maclib GitHub release (" .. #src .. " bytes)")
-      end
-    end
   end
   if not maclibSrc then
-    warn("[WereTools] Maclib unavailable — tried backend, weretools.xyz, and the biggaboy212/Maclib GitHub release. Check your executor's HttpGet / network access.")
+    warn("[WereTools] Maclib unavailable — cannot open window. Drop Maclib.lua into backend/static/RobloxUI/ and restart the server.")
     return
   end
   local maclib = loadstring(maclibSrc)()
