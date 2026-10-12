@@ -13317,7 +13317,7 @@ if #failed > 0 then
 end
 
 -- ─────────────────────────────────────────────────────────────
--- main UI  (inlined from deobfuscated_loadstring43.txt)
+-- main UI  (Obsidian port of the former Maclib UI block)
 -- ─────────────────────────────────────────────────────────────
 task.spawn(function()
   local players = game:GetService("Players")
@@ -13328,15 +13328,14 @@ task.spawn(function()
   local virtualUser = game:GetService("VirtualUser")
   local teleportService = game:GetService("TeleportService")
 
-  if getgenv().WereTools_MacLib_Instance then
+  if getgenv().WereTools_Obsidian_Instance then
     if getgenv().WereTools_StopLoops then
       getgenv().WereTools_StopLoops()
     end
-
     task.wait(0.5)
   end
 
-  getgenv().WereTools_MacLib_Instance = true
+  getgenv().WereTools_Obsidian_Instance = true
   local localValue1 = true
   getgenv().WereTools_StopLoops = function() localValue1 = false end
   local localPlayer = players.LocalPlayer
@@ -13410,69 +13409,50 @@ task.spawn(function()
     end
   end)
 
-  -- Pull Maclib from the first backend that answers; fall back to weretools.xyz.
-  local maclibSrc
-  do
-    local tried = {}
-    for _, base in ipairs(BACKENDS) do
-      tried[base] = true
-      local ok, src = pcall(function()
-        return game:HttpGet(base .. "/RobloxUI/Maclib.lua?t=" .. tostring(tick()))
-      end)
-      if ok and type(src) == "string" and #src > 1000 then
-        maclibSrc = src
-        print("[WereTools] Maclib via " .. base .. " (" .. #src .. " bytes)")
-        break
-      end
-    end
-    if not maclibSrc and not tried["https://weretools.xyz"] then
-      local ok, src = pcall(function()
-        return game:HttpGet("https://weretools.xyz/RobloxUI/Maclib.lua?t=" .. tostring(tick()))
-      end)
-      if ok and type(src) == "string" and #src > 1000 then
-        maclibSrc = src
-        print("[WereTools] Maclib via https://weretools.xyz (" .. #src .. " bytes)")
-      end
-    end
+  -- Pull Obsidian + addons from the official repo.
+  local OBSIDIAN_REPO = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
+  local libSrc
+  local ok, src = pcall(function()
+    return game:HttpGet(OBSIDIAN_REPO .. "Library.lua")
+  end)
+  if ok and type(src) == "string" and #src > 1000 then
+    libSrc = src
+    print("[WereTools] Obsidian via " .. OBSIDIAN_REPO .. " (" .. #src .. " bytes)")
   end
-  if not maclibSrc then
-    warn("[WereTools] Maclib unavailable — cannot open window. Drop Maclib.lua into backend/static/RobloxUI/ and restart the server.")
+  if not libSrc then
+    warn("[WereTools] Obsidian unavailable — cannot open window.")
     return
   end
-  local maclib = loadstring(maclibSrc)()
+  local Library = loadstring(libSrc)()
+  local SaveManager = loadstring(game:HttpGet(OBSIDIAN_REPO .. "addons/SaveManager.lua"))()
+  local ThemeManager = loadstring(game:HttpGet(OBSIDIAN_REPO .. "addons/ThemeManager.lua"))()
 
-  local weretoolsWindow = maclib:Window({
+  local weretoolsWindow = Library:CreateWindow({
     Title = "WERETOOLS",
-    isPremium = localValue5,
-    Subtitle = "Bloxburg Script | Premium Edition",
-    Size = UDim2.fromOffset(868, 350),
-    DragStyle = 1,
-    ShowUserInfo = true,
-    Keybind = Enum.KeyCode.RightControl,
-    AcrylicBlur = true,
+    Footer = "Bloxburg Script | " .. (localValue5 and "Premium Edition" or "Trial") .. " | Key: " .. localValue4,
+    Size = UDim2.fromOffset(868, 500),
+    ToggleKeybind = Enum.KeyCode.RightControl,
+    NotifySide = "Right",
+    ShowCustomCursor = true,
   })
-
-  weretoolsWindow:SetUserInfoState(true, 'Key: <font color="#00FFFF">' .. localValue4 .. "</font>")
 
   local function helperFunction1(title, description, parameter1)
     if localValue15 then return end
     pcall(function()
-      weretoolsWindow:Notify({
+      Library:Notify({
         Title = title,
         Description = description,
-        Color = Color3.fromRGB(120, 180, 255),
-        Lifetime = parameter1 or 5,
+        Time = parameter1 or 5,
       })
     end)
   end
 
   local function helperFunction2()
     if localValue15 then return end
-    weretoolsWindow:Notify({
+    Library:Notify({
       Title = "Premium Required",
       Description = "You must purchase Premium Key to use this feature!",
-      Lifetime = 5,
-      Color = Color3.fromRGB(255, 215, 0),
+      Time = 5,
     })
   end
 
@@ -13482,59 +13462,40 @@ task.spawn(function()
     return false
   end
 
+  local dialogCounter = 0
   local function helperFunction4(title2, description2, parameter2)
-    weretoolsWindow:Dialog({
+    dialogCounter = dialogCounter + 1
+    weretoolsWindow:AddDialog("WereToolsDialog" .. dialogCounter, {
       Title = title2,
       Description = description2,
-      Buttons = {
-        { Name = "Confirm", Color = Color3.fromRGB(46, 204, 113), Callback = function()
+      AutoDismiss = true,
+      OutsideClickDismiss = true,
+      FooterButtons = {
+        Cancel = {
+          Title = "Cancel",
+          Variant = "Ghost",
+          Order = 1,
+        },
+        Confirm = {
+          Title = "Confirm",
+          Variant = "Primary",
+          Order = 2,
+          Callback = function()
             if parameter2 then parameter2() end
-          end },
-        { Name = "Cancel", Color = Color3.fromRGB(255, 80, 80) },
+          end,
+        },
       },
     })
   end
 
-  weretoolsWindow:GlobalSetting({
-    Name = "UI Blur",
-    Default = weretoolsWindow:GetAcrylicBlurState(),
-    Callback = function(value)
-      weretoolsWindow:SetAcrylicBlurState(value)
-      weretoolsWindow:Notify({ Title = weretoolsWindow.Settings.Title,
-        Description = (value and "Enabled" or "Disabled") .. " UI Blur", Lifetime = 5 })
-    end,
-  })
-
-  weretoolsWindow:GlobalSetting({
-    Name = "Notifications",
-    Default = weretoolsWindow:GetNotificationsState(),
-    Callback = function(value2)
-      weretoolsWindow:SetNotificationsState(value2)
-      weretoolsWindow:Notify({ Title = weretoolsWindow.Settings.Title,
-        Description = (value2 and "Enabled" or "Disabled") .. " Notifications", Lifetime = 5 })
-    end,
-  })
-
-  weretoolsWindow:GlobalSetting({
-    Name = "Show User Info",
-    Default = weretoolsWindow:GetUserInfoState(),
-    Callback = function(value3)
-      weretoolsWindow:SetUserInfoState(value3)
-      weretoolsWindow:Notify({ Title = weretoolsWindow.Settings.Title,
-        Description = (value3 and "Showing" or "Redacted") .. " User Info", Lifetime = 5 })
-    end,
-  })
-
-  local localValue17 = { Main = weretoolsWindow:TabGroup(), Configuration = weretoolsWindow:TabGroup() }
-
   local localValue18 = {
-    Info = localValue17.Main:Tab({ Name = "Info", Image = "rbxassetid://81422973331991" }),
-    Main = localValue17.Main:Tab({ Name = "Main", Image = "rbxassetid://14775711263" }),
-    Premium = localValue17.Main:Tab({ Name = "Premium", Image = "rbxassetid://18611898684" }),
-    Build = localValue17.Main:Tab({ Name = "Auto Build", Image = "rbxassetid://124620632231839" }),
-    Misc = localValue17.Main:Tab({ Name = "Miscellaneous", Image = "rbxassetid://134126920088449" }),
-    Themes = localValue17.Configuration:Tab({ Name = "Themes", Image = "rbxassetid://12111879608" }),
-    Settings = localValue17.Configuration:Tab({ Name = "Settings & Webhook", Image = "rbxassetid://10734950309" }),
+    Info = weretoolsWindow:AddTab("Info", "info"),
+    Main = weretoolsWindow:AddTab("Main", "home"),
+    Premium = weretoolsWindow:AddTab("Premium", "star"),
+    Build = weretoolsWindow:AddTab("Auto Build", "hammer"),
+    Misc = weretoolsWindow:AddTab("Miscellaneous", "wrench"),
+    Themes = weretoolsWindow:AddTab("Themes", "palette"),
+    Settings = weretoolsWindow:AddTab("Settings & Webhook", "settings"),
   }
 
   local function helperFunction5()
@@ -13592,8 +13553,8 @@ task.spawn(function()
     return localValue19
   end
 
-  local section = localValue18.Info:Section({ Side = "Left" })
-  section:Header({ Text = "Player Mood Status" })
+  -- ───────── Info Tab ─────────
+  local section = localValue18.Info:AddGroupbox({ Side = "Left", Name = "Player Mood Status" })
 
   local function helperFunction12()
     local localPlayer2 = players.LocalPlayer
@@ -13617,27 +13578,26 @@ task.spawn(function()
   end
 
   local localValue21, localValue22, localValue23, localValue24, localValue25 = helperFunction12()
-  local label = section:Label({ Text = "<b>Overall Mood:</b> " .. localValue21 })
-  local label2 = section:Label({ Text = "Energy: " .. localValue22 .. "%" })
-  local label3 = section:Label({ Text = "Fun: " .. localValue23 .. "%" })
-  local label4 = section:Label({ Text = "Hunger: " .. localValue24 .. "%" })
-  local label5 = section:Label({ Text = "Hygiene: " .. localValue25 .. "%" })
+  local label = section:AddLabel("<b>Overall Mood:</b> " .. localValue21, true)
+  local label2 = section:AddLabel("Energy: " .. localValue22 .. "%", true)
+  local label3 = section:AddLabel("Fun: " .. localValue23 .. "%", true)
+  local label4 = section:AddLabel("Hunger: " .. localValue24 .. "%", true)
+  local label5 = section:AddLabel("Hygiene: " .. localValue25 .. "%", true)
 
   task.spawn(function()
     while task.wait(15) do
       pcall(function()
         local localValue26, localValue27, localValue28, localValue29, localValue30 = helperFunction12()
-        label:UpdateName("<b>Overall Mood:</b> " .. localValue26)
-        label2:UpdateName("Energy: " .. localValue27 .. "%")
-        label3:UpdateName("Fun: " .. localValue28 .. "%")
-        label4:UpdateName("Hunger: " .. localValue29 .. "%")
-        label5:UpdateName("Hygiene: " .. localValue30 .. "%")
+        label:SetText("<b>Overall Mood:</b> " .. localValue26)
+        label2:SetText("Energy: " .. localValue27 .. "%")
+        label3:SetText("Fun: " .. localValue28 .. "%")
+        label4:SetText("Hunger: " .. localValue29 .. "%")
+        label5:SetText("Hygiene: " .. localValue30 .. "%")
       end)
     end
   end)
 
-  local section2 = localValue18.Info:Section({ Side = "Right" })
-  section2:Header({ Text = "School Schedule" })
+  local section2 = localValue18.Info:AddGroupbox({ Side = "Right", Name = "School Schedule" })
 
   task.spawn(function()
     pcall(function()
@@ -13691,7 +13651,7 @@ task.spawn(function()
                 if not localValue36[localValue39] then
                   localValue36[localValue39] = true
                   localValue34 = true
-                  section2:Paragraph({ Header = text, Body = localValue38 })
+                  section2:AddLabel("<b>" .. text .. "</b>\n" .. localValue38, true)
                 end
               end
             end
@@ -13699,19 +13659,18 @@ task.spawn(function()
         end
       end
       if not localValue34 then
-        section2:Paragraph({ Header = "Loading...", Body = "Go to school to update calendar!" })
+        section2:AddLabel("<b>Loading...</b>\nGo to school to update calendar!", true)
       end
       return
     end)
   end)
 
-  local section3 = localValue18.Info:Section({ Side = "Left" })
-  section3:Header({ Text = "Job Info" })
+  local section3 = localValue18.Info:AddGroupbox({ Side = "Left", Name = "Job Info" })
 
-  local label6 = section3:Label({ Text = "Current Job: Loading..." })
-  local label7 = section3:Label({ Text = "Efficiency: 0%" })
-  local label8 = section3:Label({ Text = "Shift Earning: $0" })
-  local label9 = section3:Label({ Text = "Total Earning From this session: $0" })
+  local label6 = section3:AddLabel("Current Job: Loading...", true)
+  local label7 = section3:AddLabel("Efficiency: 0%", true)
+  local label8 = section3:AddLabel("Shift Earning: $0", true)
+  local label9 = section3:AddLabel("Total Earning From this session: $0", true)
 
   task.spawn(function()
     while task.wait(20) do
@@ -13731,23 +13690,22 @@ task.spawn(function()
               localValue42 = money.Value - 0
               if localValue42 < 0 then localValue42 = 0 end
             end
-            label6:UpdateName("Current Job: " .. tostring(value8))
-            label7:UpdateName("Efficiency: " .. tostring(value9) .. "%")
-            label8:UpdateName("Shift Earning: $" .. tostring(value10))
-            label9:UpdateName("Total Earning From this session: $" .. tostring(localValue42))
+            label6:SetText("Current Job: " .. tostring(value8))
+            label7:SetText("Efficiency: " .. tostring(value9) .. "%")
+            label8:SetText("Shift Earning: $" .. tostring(value10))
+            label9:SetText("Total Earning From this session: $" .. tostring(localValue42))
           end
         end
       end)
     end
   end)
 
-  local section4 = localValue18.Info:Section({ Side = "Right" })
-  section4:Header({ Text = "Skill Info" })
+  local section4 = localValue18.Info:AddGroupbox({ Side = "Right", Name = "Skill Info" })
 
   local localValue43 = { "Art", "Athletic", "Cooking", "Gaming", "Gardening", "Intelligence", "Music", "Writing" }
   local localValue44 = {}
   for index5, value11 in ipairs(localValue43) do
-    localValue44[value11] = section4:Label({ Text = value11 .. ": Lvl 0 | 0 XP" })
+    localValue44[value11] = section4:AddLabel(value11 .. ": Lvl 0 | 0 XP", true)
   end
 
   task.spawn(function()
@@ -13765,7 +13723,7 @@ task.spawn(function()
                 local xp = findFirstChild3:FindFirstChild("XP")
                 local value14 = xp and xp.Value or 0
                 if localValue44[value12] then
-                  localValue44[value12]:UpdateName(value12 .. ": Lvl " .. tostring(value13) .. " | " .. tostring(value14) .. " XP")
+                  localValue44[value12]:SetText(value12 .. ": Lvl " .. tostring(value13) .. " | " .. tostring(value14) .. " XP")
                 end
               end
             end
@@ -13775,12 +13733,12 @@ task.spawn(function()
     end
   end)
 
-  local section5 = localValue18.Main:Section({ Side = "Right" })
-  section5:Header({ Text = "Auto Farm" })
+  -- ───────── Main Tab ─────────
+  local section5 = localValue18.Main:AddGroupbox({ Side = "Right", Name = "Auto Farm" })
 
-  section5:Dropdown({
-    Name = "Select Job",
-    Options = {
+  section5:AddDropdown("JobSelect", {
+    Text = "Select Job",
+    Values = {
       "TaxiJob", "StylezHairdresser", "PizzaPlanetDelivery", "BloxBurgersEmployee",
       "HighSchoolTeacher", "SchoolJanitor", "HutFisherman", "BensIceCreamSeller",
       "MikesMechanic", "SupermarketCashier", "CaveMiner", "SupermarketStocker",
@@ -13788,11 +13746,11 @@ task.spawn(function()
     },
     Default = 1,
     Callback = function(value15) localValue6.Job = value15 end,
-  }, "JobSelect")
+  })
 
-  section5:Button({
-    Name = "Teleport to Job",
-    Callback = function()
+  section5:AddButton({
+    Text = "Teleport to Job",
+    Func = function()
       local job = localValue6.Job
       if not job or job == "" then return end
       local ok = pcall(function()
@@ -13803,11 +13761,11 @@ task.spawn(function()
       end
       helperFunction1("Teleport", "Heading to " .. job, 3)
     end,
-  }, "TeleportToJob")
+  })
 
-  section5:Button({
-    Name = "Force End Shift",
-    Callback = function()
+  section5:AddButton({
+    Text = "Force End Shift",
+    Func = function()
       pcall(function()
         local localValue46 = require(localPlayer.PlayerScripts.Modules.JobHandler)
         localValue46:StopWorking()
@@ -13815,12 +13773,12 @@ task.spawn(function()
         localValue46:StopWorking()
       end)
     end,
-  }, "ForceEndShift")
+  })
 
   local localValue47
 
-  section5:Toggle({
-    Name = "Start Auto Farm",
+  section5:AddToggle("EnableAutoFarm", {
+    Text = "Start Auto Farm",
     Default = false,
     Callback = function(value16)
       if value16 then
@@ -13840,23 +13798,22 @@ task.spawn(function()
         localValue47 = nil
       end
     end,
-  }, "EnableAutoFarm")
+  })
 
-  local section6 = localValue18.Main:Section({ Side = "Left" })
-  section6:Header({ Text = "Settings" })
+  local section6 = localValue18.Main:AddGroupbox({ Side = "Left", Name = "Settings" })
 
-  section6:Toggle({
-    Name = "Anti AFK",
-    Shortdesc = "Prevent 20 minutes kicked from ROBLOX",
+  section6:AddToggle("AntiAFK", {
+    Text = "Anti AFK",
+    Tooltip = "Prevent 20 minutes kicked from ROBLOX",
     Default = true,
     Callback = function(value17)
       if value17 then helperFunction9() else helperFunction10() end
     end,
-  }, "AntiAFK")
+  })
 
-  section6:Toggle({
-    Name = "Auto Claim Pay Check",
-    Shortdesc = "Help you to claim pay check when it pop up.",
+  section6:AddToggle("AutoClaimPayCheck", {
+    Text = "Auto Claim Pay Check",
+    Tooltip = "Help you to claim pay check when it pop up.",
     Default = false,
     Callback = function(value18)
       getgenv().AutoClaimPayCheck = value18
@@ -13872,49 +13829,45 @@ task.spawn(function()
         end)
       end
     end,
-  }, "AutoClaimPayCheck")
-
-  section6:Button({
-    Name = "Potato Graphics",
-    Shortdesc = "Optimize your device performance (useful on mobile)",
-    Callback = function()
-      if graphic and graphic.setPotatoMode then graphic.setPotatoMode(true) end
-    end,
-  }, "PotatoGraphic")
-
-  local section7 = localValue18.Main:Section({ Side = "Left" })
-  section7:Header({ Text = "Wrap Gift" })
-
-  section7:Paragraph({
-    Header = "Tutorial",
-    Body = "This feature help you to bypass donation limit, you must use alt account to use this feature, more information on official discord!. Make sure you placed Simplicity Dining Table and Gift Wrapping Station",
   })
 
-  local selectPlayerDropdown = section7:Dropdown({
-    Name = "Select Player",
-    Options = helperFunction11(),
+  section6:AddButton({
+    Text = "Potato Graphics",
+    Tooltip = "Optimize your device performance (useful on mobile)",
+    Func = function()
+      if graphic and graphic.setPotatoMode then graphic.setPotatoMode(true) end
+    end,
+  })
+
+  local section7 = localValue18.Main:AddGroupbox({ Side = "Left", Name = "Wrap Gift" })
+
+  section7:AddLabel("<b>Tutorial</b>\nThis feature help you to bypass donation limit, you must use alt account to use this feature, more information on official discord!. Make sure you placed Simplicity Dining Table and Gift Wrapping Station", true)
+
+  local selectPlayerDropdown = section7:AddDropdown("WrapPlayer", {
+    Text = "Select Player",
+    Values = helperFunction11(),
     Default = 1,
     Callback = function(value19) localValue6.WrapgiftPlayer = value19 end,
-  }, "WrapPlayer")
+  })
 
-  section7:Button({
-    Name = "Goto Plot",
-    Callback = function()
+  section7:AddButton({
+    Text = "Goto Plot",
+    Func = function()
       if localValue16.ToPlot then
         localValue16.ToPlot:InvokeServer({ Player = localValue6.WrapgiftPlayer })
         helperFunction1("Success", "Teleported to " .. tostring(localValue6.WrapgiftPlayer), 3)
       end
     end,
-  }, "GotoPlot")
+  })
 
-  section7:Input({
-    Name = "Set Money Amount",
+  section7:AddInput("WrapgiftAmount", {
+    Text = "Set Money Amount",
     Placeholder = "100000",
     Callback = function(value20) getgenv().WrapgiftAmount = tonumber(value20) or 100000 end,
-  }, "WrapgiftAmount")
+  })
 
-  section7:Toggle({
-    Name = "Auto Wrap Gift",
+  section7:AddToggle("AutoWrapGift", {
+    Text = "Auto Wrap Gift",
     Default = false,
     Callback = function(value21)
       if not wrapgift then return
@@ -13927,10 +13880,9 @@ task.spawn(function()
         return
       end
     end,
-  }, "AutoWrapGift")
+  })
 
-  local section8 = localValue18.Main:Section({ Side = "Right" })
-  section8:Header({ Text = "Break System" })
+  local section8 = localValue18.Main:AddGroupbox({ Side = "Right", Name = "Break System" })
 
   local localValue49 = 40
   local localValue50 = 5
@@ -13940,32 +13892,29 @@ task.spawn(function()
     "CanvasGroup", "ShiftContainer", "DurationContainer", "ShiftDurationLabel",
   }
 
-  section8:Paragraph({
-    Header = "Tutorial",
-    Body = "Breaks give you more legit behaviours, which prevents banning from bloxburg staff! (Recommend always turn this on).",
-  })
+  section8:AddLabel("<b>Tutorial</b>\nBreaks give you more legit behaviours, which prevents banning from bloxburg staff! (Recommend always turn this on).", true)
 
-  section8:Input({
-    Name = "Break After Minutes",
+  section8:AddInput("BreakAfter", {
+    Text = "Break After Minutes",
     Placeholder = "40",
     Callback = function(value22) localValue49 = tonumber(value22) or 40 end,
-  }, "BreakAfter")
+  })
 
-  section8:Input({
-    Name = "Break Duration (minutes)",
+  section8:AddInput("BreakDuration", {
+    Text = "Break Duration (minutes)",
     Placeholder = "5",
     Callback = function(value23) localValue50 = tonumber(value23) or 5 end,
-  }, "BreakDuration")
+  })
 
-  section8:Button({
-    Name = "Set Breaks",
-    Callback = function()
+  section8:AddButton({
+    Text = "Set Breaks",
+    Func = function()
       helperFunction1("Info", "Settings Saved: " .. tostring(localValue49) .. "m work / " .. tostring(localValue50) .. "m break", 3)
     end,
-  }, "BreakTimer")
+  })
 
-  section8:Toggle({
-    Name = "Start Breaks",
+  section8:AddToggle("EnableBreaks", {
+    Text = "Start Breaks",
     Default = false,
     Callback = function(value24)
       localValue10 = value24
@@ -14007,40 +13956,39 @@ task.spawn(function()
         end
       end)
     end,
-  }, "EnableBreaks")
+  })
 
-  local section9 = localValue18.Main:Section({ Side = "Right" })
-  section9:Header({ Text = "School Farms" })
+  local section9 = localValue18.Main:AddGroupbox({ Side = "Right", Name = "School Farms" })
 
-  section9:Toggle({ Name = "Chemistry", Default = true, Callback = function(value25)
+  section9:AddToggle("SchoolChem", { Text = "Chemistry", Default = true, Callback = function(value25)
       if schoolController and schoolController.setOption then schoolController.setOption("chem", value25) end
-    end }, "SchoolChem")
+    end })
 
-  section9:Toggle({ Name = "Language", Default = true, Callback = function(value26)
+  section9:AddToggle("SchoolLang", { Text = "Language", Default = true, Callback = function(value26)
       if schoolController and schoolController.setOption then schoolController.setOption("lang", value26) end
-    end }, "SchoolLang")
+    end })
 
-  section9:Toggle({ Name = "Art", Default = true, Callback = function(value27)
+  section9:AddToggle("SchoolArt", { Text = "Art", Default = true, Callback = function(value27)
       if schoolController and schoolController.setOption then schoolController.setOption("art", value27) end
-    end }, "SchoolArt")
+    end })
 
-  section9:Toggle({ Name = "Physics", Default = true, Callback = function(value28)
+  section9:AddToggle("SchoolPhys", { Text = "Physics", Default = true, Callback = function(value28)
       if schoolController and schoolController.setOption then schoolController.setOption("phys", value28) end
-    end }, "SchoolPhys")
+    end })
 
-  section9:Button({
-    Name = "Teleport to School",
-    Callback = function()
+  section9:AddButton({
+    Text = "Teleport to School",
+    Func = function()
       local char = localPlayer.Character
       if char and char:FindFirstChild("HumanoidRootPart") then
         char.HumanoidRootPart.CFrame = CFrame.new(999.67, 47.19, -251.87)
         helperFunction1("Teleport", "Teleported to school", 3)
       end
     end,
-  }, "TeleportToSchool")
+  })
 
-  section9:Toggle({
-    Name = "Start Auto School",
+  section9:AddToggle("SchoolAuto", {
+    Text = "Start Auto School",
     Default = false,
     Callback = function(value29)
       if not schoolController then return end
@@ -14050,22 +13998,21 @@ task.spawn(function()
         schoolController.stopController()
       end
     end,
-  }, "SchoolAuto")
+  })
 
-  local section10 = localValue18.Main:Section({ Side = "Left" })
-  section10:Header({ Text = "Skills" })
+  local section10 = localValue18.Main:AddGroupbox({ Side = "Left", Name = "Skills" })
 
-  section10:Dropdown({
-    Name = "Select Skill",
-    Options = { "Cooking", "Gardening", "Intelligence", "Painting", "Writing", "Music", "Athletic", "Gaming" },
+  section10:AddDropdown("MainSkillSelect", {
+    Text = "Select Skill",
+    Values = { "Cooking", "Gardening", "Intelligence", "Painting", "Writing", "Music", "Athletic", "Gaming" },
     Default = 1,
     Callback = function(value30) localValue6.Skill = value30 end,
-  }, "MainSkillSelect")
+  })
 
   local localValue53
 
-  section10:Toggle({
-    Name = "Auto Farm Skill",
+  section10:AddToggle("MainAutoSkill", {
+    Text = "Auto Farm Skill",
     Default = false,
     Callback = function(value31)
       localValue9 = value31
@@ -14087,10 +14034,10 @@ task.spawn(function()
         pcall(function() if skillModule.StopGardening then skillModule.StopGardening() end end)
       end
     end,
-  }, "MainAutoSkill")
+  })
 
-  section10:Toggle({
-    Name = "Auto Harvest",
+  section10:AddToggle("MainAutoHarvest", {
+    Text = "Auto Harvest",
     Default = false,
     Callback = function(value32)
       if skillModule then skillModule.AutoHarvest = value32 end
@@ -14101,18 +14048,18 @@ task.spawn(function()
         harvest.stopAutoFarm()
       end
     end,
-  }, "MainAutoHarvest")
+  })
 
   if localValue13 then
     helperFunction9()
   end
 
-  local section11 = localValue18.Premium:Section({ Side = "Left" })
-  section11:Header({ Text = "Auto Pay Mood" })
+  -- ───────── Premium Tab ─────────
+  local section11 = localValue18.Premium:AddGroupbox({ Side = "Left", Name = "Auto Pay Mood" })
 
-  section11:Toggle({
-    Name = "Enable Pay Boost Mood",
-    Shortdesc = "This feature allow you to auto use your blockbux to recharge your mood faster without going to home!",
+  section11:AddToggle("AutoPayMood", {
+    Text = "Enable Pay Boost Mood",
+    Tooltip = "This feature allow you to auto use your blockbux to recharge your mood faster without going to home!",
     Default = false,
     Callback = function(value33)
       if value33 and not helperFunction3() then
@@ -14151,47 +14098,52 @@ task.spawn(function()
         end)
       end
     end,
-  }, "AutoPayMood")
+  })
 
-  local section12 = localValue18.Premium:Section({ Side = "Right" })
-  section12:Header({ Text = "Mood Settings" })
+  local section12 = localValue18.Premium:AddGroupbox({ Side = "Right", Name = "Mood Settings" })
 
-  section12:Slider({ Name = "Trigger Below", Default = 40, Minimum = 0, Maximum = 100, DisplayMethod = "Percent",
-    Callback = function(value35) localValue6.MoodTrigger = value35 end }, "MoodTriggerSlider")
+  section12:AddSlider("MoodTriggerSlider", {
+    Text = "Trigger Below",
+    Default = 40, Min = 0, Max = 100, Rounding = 0, Suffix = "%",
+    Callback = function(value35) localValue6.MoodTrigger = value35 end,
+  })
 
-  section12:Slider({ Name = "Boost To", Default = 100, Minimum = 0, Maximum = 100, DisplayMethod = "Percent",
-    Callback = function(value36) localValue6.MoodTarget = value36 end }, "MoodTargetSlider")
+  section12:AddSlider("MoodTargetSlider", {
+    Text = "Boost To",
+    Default = 100, Min = 0, Max = 100, Rounding = 0, Suffix = "%",
+    Callback = function(value36) localValue6.MoodTarget = value36 end,
+  })
 
   local funBoost = true
   local hygieneBoost = true
   local hungerBoost = true
   local energyBoost = true
 
-  section12:Toggle({ Name = "Fun Boost", Default = true, Callback = function(value37)
+  section12:AddToggle("MoodFun", { Text = "Fun Boost", Default = true, Callback = function(value37)
       if not helperFunction3() then return end
       funBoost = value37
-    end }, "MoodFun")
+    end })
 
-  section12:Toggle({ Name = "Hygiene Boost", Default = true, Callback = function(value38)
+  section12:AddToggle("MoodHygiene", { Text = "Hygiene Boost", Default = true, Callback = function(value38)
       if not helperFunction3() then return end
       hygieneBoost = value38
-    end }, "MoodHygiene")
+    end })
 
-  section12:Toggle({ Name = "Hunger Boost", Default = true, Callback = function(value39)
+  section12:AddToggle("MoodHunger", { Text = "Hunger Boost", Default = true, Callback = function(value39)
       if not helperFunction3() then return end
       hungerBoost = value39
-    end }, "MoodHunger")
+    end })
 
-  section12:Toggle({ Name = "Energy Boost", Default = true, Callback = function(value40)
+  section12:AddToggle("MoodEnergy", { Text = "Energy Boost", Default = true, Callback = function(value40)
       if not helperFunction3() then return end
       energyBoost = value40
-    end }, "MoodEnergy")
+    end })
 
   local localValue55 = false
   local localValue56
 
-  section12:Toggle({
-    Name = "Start Auto Mood",
+  section12:AddToggle("AutoMoodBoost", {
+    Text = "Start Auto Mood",
     Default = false,
     Callback = function(value41)
       localValue7 = value41
@@ -14282,10 +14234,10 @@ task.spawn(function()
         localValue55 = false
       end
     end,
-  }, "AutoMoodBoost")
+  })
 
-  local section13 = localValue18.Build:Section({ Side = "Left" })
-  section13:Header({ Text = "Save House" })
+  -- ───────── Build Tab ─────────
+  local section13 = localValue18.Build:AddGroupbox({ Side = "Left", Name = "Save House" })
 
   local function helperFunction14()
     local localValue68 = {}
@@ -14299,16 +14251,16 @@ task.spawn(function()
     return localValue68
   end
 
-  local selectPlayerDropdown2 = section13:Dropdown({
-    Name = "Select Player",
-    Options = helperFunction14(),
+  local selectPlayerDropdown2 = section13:AddDropdown("BuildSelectPlayer", {
+    Text = "Select Player",
+    Values = helperFunction14(),
     Default = 1,
     Callback = function(value43) localValue6.BuildPlayer = value43 end,
-  }, "BuildSelectPlayer")
+  })
 
-  section13:Button({
-    Name = "Goto Plot Player",
-    Callback = function()
+  section13:AddButton({
+    Text = "Goto Plot Player",
+    Func = function()
       local buildPlayer = localValue6.BuildPlayer
       if not buildPlayer or buildPlayer == "" then return end
       if localValue16.ToPlot then
@@ -14316,11 +14268,11 @@ task.spawn(function()
         helperFunction1("Success", "Teleported to " .. buildPlayer .. "'s plot.", 3)
       end
     end,
-  }, "GotoPlotPlayer")
+  })
 
-  section13:Button({
-    Name = "Save Build",
-    Callback = function()
+  section13:AddButton({
+    Text = "Save Build",
+    Func = function()
       local buildPlayer2 = localValue6.BuildPlayer
       if not buildPlayer2 or buildPlayer2 == "" then return end
       task.spawn(function()
@@ -14333,40 +14285,33 @@ task.spawn(function()
         end
       end)
     end,
-  }, "SaveBuild")
+  })
 
-  section13:Toggle({
-    Name = "Free Camera",
-    Shortdesc = "You can move around your world, useful when you want to see the house interior without permission! ",
+  section13:AddToggle("BuildEnableCamera", {
+    Text = "Free Camera",
+    Tooltip = "You can move around your world, useful when you want to see the house interior without permission!",
     Default = false,
     Callback = function(value44)
       if camera and camera.Set then camera.Set(value44) end
     end,
-  }, "BuildEnableCamera")
+  })
 
-  local section14 = localValue18.Build:Section({ Side = "Right" })
-  section14:Header({ Text = "Build Preview" })
-
-  local section15 = localValue18.Build:Section({ Side = "Right" })
-  section15:Header({ Text = "Multi Build Config" })
-
-  local section16 = localValue18.Build:Section({ Side = "Right" })
-  section16:Header({ Text = "Load Build from ID" })
-
-  local section17 = localValue18.Build:Section({ Side = "Left" })
-  section17:Header({ Text = "Build Settings" })
+  local section14 = localValue18.Build:AddGroupbox({ Side = "Right", Name = "Build Preview" })
+  local section15 = localValue18.Build:AddGroupbox({ Side = "Right", Name = "Multi Build Config" })
+  local section16 = localValue18.Build:AddGroupbox({ Side = "Right", Name = "Load Build from ID" })
+  local section17 = localValue18.Build:AddGroupbox({ Side = "Left", Name = "Build Settings" })
 
   local houseID = ""
 
-  section14:Input({
-    Name = "House ID",
+  section14:AddInput("PreviewHouseID", {
+    Text = "House ID",
     Placeholder = "Paste House ID.",
     Callback = function(value45) houseID = value45 end,
-  }, "PreviewHouseID")
+  })
 
-  section14:Button({
-    Name = "Load Preview Build",
-    Callback = function()
+  section14:AddButton({
+    Text = "Load Preview Build",
+    Func = function()
       if houseID ~= "" and previewBuild and previewBuild.load_preview then
         local loaded = previewBuild.load_preview(houseID)
         if loaded then
@@ -14374,57 +14319,57 @@ task.spawn(function()
         end
       end
     end,
-  }, "LoadPreviewBuild")
+  })
 
-  section14:Button({
-    Name = "Delete Preview Build",
-    Callback = function()
+  section14:AddButton({
+    Text = "Delete Preview Build",
+    Func = function()
       if previewBuild and previewBuild.destroy_previewBuild then previewBuild.destroy_previewBuild(true) end
     end,
-  }, "DeletePreviewBuild")
+  })
 
-  section14:Divider()
-  section14:Paragraph({ Header = "Configuration", Body = "" })
+  section14:AddDivider()
+  section14:AddLabel("<b>Configuration</b>", true)
 
-  section14:Toggle({
-    Name = "Objects Collide",
-    Shortdesc = "Turn this off if you want to go through objects.",
+  section14:AddToggle("ObjectsColide", {
+    Text = "Objects Collide",
+    Tooltip = "Turn this off if you want to go through objects.",
     Default = true,
     Callback = function(value46)
       if type(getgenv().BUILD_OPTION) ~= "table" then getgenv().BUILD_OPTION = {} end
       getgenv().BUILD_OPTION.CanCollide = value46
     end,
-  }, "ObjectsColide")
+  })
 
-  section14:Toggle({
-    Name = "Show Structural Items",
-    Shortdesc = "Turn this on if you want to see structural items.",
+  section14:AddToggle("ShowStructuralItems", {
+    Text = "Show Structural Items",
+    Tooltip = "Turn this on if you want to see structural items.",
     Default = true,
     Callback = function(value47)
       if type(getgenv().BUILD_OPTION) ~= "table" then getgenv().BUILD_OPTION = {} end
       getgenv().BUILD_OPTION.ShowStructuralItems = value47
     end,
-  }, "ShowStructuralItems")
+  })
 
-  section16:Button({
-    Name = "Get More Builds",
-    Shortdesc = "Paste this link on your browser and find your favourite builds",
-    Callback = function()
+  section16:AddButton({
+    Text = "Get More Builds",
+    Tooltip = "Paste this link on your browser and find your favourite builds",
+    Func = function()
       pcall(function() setclipboard("https://weretools.xyz/dashboard/") end)
     end,
-  }, "WebsiteBuildID")
+  })
 
-  section16:Input({
-    Name = "ID House",
-    Shortdesc = "Dont have ID? Click Get more builds button above",
+  section16:AddInput("LoadHouseID", {
+    Text = "ID House",
+    Tooltip = "Dont have ID? Click Get more builds button above",
     Placeholder = "Paste House ID",
     Callback = function(value48) localValue6.HouseID = value48 end,
-  }, "LoadHouseID")
+  })
 
-  section16:Button({
-    Name = "Load Build",
-    Shortdesc = "After get your ID house, ensure that enter the build mode and click this button",
-    Callback = function()
+  section16:AddButton({
+    Text = "Load Build",
+    Tooltip = "After get your ID house, ensure that enter the build mode and click this button",
+    Func = function()
       local sS = tostring(localValue6.HouseID or ""):match("^%s*(.-)%s*$")
       if sS == "" then return end
       task.spawn(function()
@@ -14489,24 +14434,21 @@ task.spawn(function()
         end)
       end)
     end,
-  }, "LoadBuild")
-
-  section16:Button({
-    Name = "Continue Build",
-    Shortdesc = "This feature help you continue previous build, helpful when you got disconnected!",
-    Callback = function()
-      if buildModule and buildModule.continue_build then buildModule.continue_build() end
-    end,
-  }, "ContinueBuild")
-
-  section15:Paragraph({
-    Header = "Tutorial",
-    Body = "Multi Build is a feature that help you build fast, You can sellect specific part and use mutiple account to build a house.",
   })
 
-  section15:Dropdown({
-    Name = "Select Objects",
-    Options = { "Walls", "Floors", "Roofs", "Basements", "Paths", "Counters", "Fences", "Pools", "Objects" },
+  section16:AddButton({
+    Text = "Continue Build",
+    Tooltip = "This feature help you continue previous build, helpful when you got disconnected!",
+    Func = function()
+      if buildModule and buildModule.continue_build then buildModule.continue_build() end
+    end,
+  })
+
+  section15:AddLabel("<b>Tutorial</b>\nMulti Build is a feature that help you build fast, You can sellect specific part and use mutiple account to build a house.", true)
+
+  section15:AddDropdown("MultiBuildConfig", {
+    Text = "Select Objects",
+    Values = { "Walls", "Floors", "Roofs", "Basements", "Paths", "Counters", "Fences", "Pools", "Objects" },
     Multi = true,
     Callback = function(value49)
       local localValue76 = { Walls = false, Floors = false, Roofs = false, Basements = false,
@@ -14524,28 +14466,28 @@ task.spawn(function()
         end
       end
     end,
-  }, "MultiBuildConfig")
+  })
 
-  section17:Toggle({
-    Name = "Use Vehicles",
-    Shortdesc = "Turn this on if you want to buy cars when building.",
+  section17:AddToggle("BuildUseVehicles", {
+    Text = "Use Vehicles",
+    Tooltip = "Turn this on if you want to buy cars when building.",
     Default = false,
     Callback = function(value52)
       if buildModule and buildModule.set_settings then buildModule.set_settings({ use_vehicles = value52 }) end
     end,
-  }, "BuildUseVehicles")
+  })
 
-  section17:Toggle({
-    Name = "Use Blockbux",
-    Shortdesc = "Turn this on if you want to use blockbux when building.",
+  section17:AddToggle("BuildUseBlockbux", {
+    Text = "Use Blockbux",
+    Tooltip = "Turn this on if you want to use blockbux when building.",
     Default = false,
     Callback = function(value53)
       if buildModule and buildModule.set_settings then buildModule.set_settings({ use_blockbux = value53 }) end
     end,
-  }, "BuildUseBlockbux")
+  })
 
-  section17:Input({
-    Name = "Set Blockbux Amount",
+  section17:AddInput("BuildBlockbuxAmount", {
+    Text = "Set Blockbux Amount",
     Placeholder = "e.g., 100",
     Callback = function(value54)
       local localValue77 = tonumber(value54)
@@ -14556,47 +14498,43 @@ task.spawn(function()
         helperFunction1("Blockbux Set", "Blockbux amount set to: " .. localValue77, 2)
       end
     end,
-  }, "BuildBlockbuxAmount")
-
-  section17:Divider()
-
-  section17:Paragraph({
-    Header = "Dangerous Section",
-    Body = "Do not modify anything if you dont know under features doing.",
   })
 
-  section17:Input({
-    Name = "Set Max Retries",
-    Shortdesc = "The amount of times rebuild when a object failed to place",
+  section17:AddDivider()
+  section17:AddLabel("<b>Dangerous Section</b>\nDo not modify anything if you dont know under features doing.", true)
+
+  section17:AddInput("SetMaxRetries", {
+    Text = "Set Max Retries",
+    Tooltip = "The amount of times rebuild when a object failed to place",
     Placeholder = "2",
     Callback = function(value55)
       if buildModule and buildModule.setMaxRetries then buildModule.setMaxRetries(value55) end
     end,
-  }, "SetMaxRetries")
+  })
 
-  section17:Input({
-    Name = "Set Placement Wait Time",
-    Shortdesc = "The waiting time for the next placement, longer time will make the build more accurate but require much time!",
+  section17:AddInput("SetPlacementTime", {
+    Text = "Set Placement Wait Time",
+    Tooltip = "The waiting time for the next placement, longer time will make the build more accurate but require much time!",
     Placeholder = "1",
     Callback = function(value56)
       if buildModule and buildModule.setPlacementTime then buildModule.setPlacementTime(value56) end
     end,
-  }, "SetPlacementTime")
+  })
 
-  section17:Input({
-    Name = "Set Color Wait Time",
-    Shortdesc = "The waiting time for the next coloring, longer time will make the build more accurate but require much time!",
+  section17:AddInput("SetColorTime", {
+    Text = "Set Color Wait Time",
+    Tooltip = "The waiting time for the next coloring, longer time will make the build more accurate but require much time!",
     Placeholder = "1",
     Callback = function(value57)
       if buildModule and buildModule.setColorTime then buildModule.setColorTime(value57) end
     end,
-  }, "SetColorTime")
+  })
 
-  local section18 = localValue18.Misc:Section({ Side = "Right" })
-  section18:Header({ Text = "Local Player" })
+  -- ───────── Misc Tab ─────────
+  local section18 = localValue18.Misc:AddGroupbox({ Side = "Right", Name = "Local Player" })
 
-  section18:Toggle({
-    Name = "Infinite Stamina",
+  section18:AddToggle("InfStamina", {
+    Text = "Infinite Stamina",
     Default = true,
     Callback = function(value58)
       task.spawn(function()
@@ -14613,10 +14551,9 @@ task.spawn(function()
         end
       end)
     end,
-  }, "InfStamina")
+  })
 
-  local section19 = localValue18.Misc:Section({ Side = "Left" })
-  section19:Header({ Text = "Neighborhood Configuration" })
+  local section19 = localValue18.Misc:AddGroupbox({ Side = "Left", Name = "Neighborhood Configuration" })
 
   local localValue78
 
@@ -14626,25 +14563,25 @@ task.spawn(function()
     end
   end
 
-  section19:Input({
-    Name = "Paste Neighborhood ID/ Name Player",
+  section19:AddInput("NeighborhoodID", {
+    Text = "Paste Neighborhood ID/ Name Player",
     Placeholder = "999",
     Callback = function(value59) localValue78 = value59 end,
-  }, "NeighborhoodID")
+  })
 
-  section19:Toggle({
-    Name = "Auto Join Neighborhood",
+  section19:AddToggle("NeighborhoodConfig", {
+    Text = "Auto Join Neighborhood",
     Default = false,
     Callback = function(value60)
       if not value60 then return end
       helperFunction16()
     end,
-  }, "NeighborhoodConfig")
+  })
 
   local connect2
 
-  section19:Toggle({
-    Name = "Auto Rejoin When Kicking",
+  section19:AddToggle("AutoRejoin", {
+    Text = "Auto Rejoin When Kicking",
     Default = false,
     Callback = function(value61)
       localValue14 = value61
@@ -14663,10 +14600,9 @@ task.spawn(function()
         connect2 = nil
       end
     end,
-  }, "AutoRejoin")
+  })
 
-  local section20 = localValue18.Misc:Section({ Side = "Left" })
-  section20:Header({ Text = "Plot Snipper" })
+  local section20 = localValue18.Misc:AddGroupbox({ Side = "Left", Name = "Plot Snipper" })
 
   function getPlayerHouses()
     local localValue79 = {}
@@ -14691,17 +14627,17 @@ task.spawn(function()
 
   local localValue81
 
-  section20:Dropdown({
-    Name = "Select House to Load",
-    Options = getPlayerHouses(),
+  section20:AddDropdown("HouseSelection", {
+    Text = "Select House to Load",
+    Values = getPlayerHouses(),
     Default = 1,
     Callback = function(value63) localValue81 = value63 end,
-  }, "HouseSelection")
+  })
 
   local localValue82 = false
 
-  section20:Toggle({
-    Name = "Auto Claim Plot",
+  section20:AddToggle("AutoClaimPlot", {
+    Text = "Auto Claim Plot",
     Default = false,
     Callback = function(value64)
       localValue82 = value64
@@ -14725,14 +14661,13 @@ task.spawn(function()
         end
       end)
     end,
-  }, "AutoClaimPlot")
+  })
 
-  local section21 = localValue18.Misc:Section({ Side = "Right" })
-  section21:Header({ Text = "Bypass Features" })
+  local section21 = localValue18.Misc:AddGroupbox({ Side = "Right", Name = "Bypass Features" })
 
-  section21:Toggle({
-    Name = "Bypass Gamepasses",
-    Shortdesc = "Only bypass advanced placement not entire gamepasses.",
+  section21:AddToggle("BypassGP", {
+    Text = "Bypass Gamepasses",
+    Tooltip = "Only bypass advanced placement not entire gamepasses.",
     Default = false,
     Callback = function(value65)
       if not value65 then return end
@@ -14742,46 +14677,41 @@ task.spawn(function()
         end
       end
     end,
-  }, "BypassGP")
-
-  local section22 = localValue18.Misc:Section({ Side = "Left" })
-  section22:Header({ Text = "Freeze UI" })
-
-  section22:Paragraph({
-    Header = "Tutorial",
-    Body = "This feature help you always to keep your mood, your mood will never be negative.",
   })
 
-  section22:Toggle({
-    Name = "Freeze UI",
+  local section22 = localValue18.Misc:AddGroupbox({ Side = "Left", Name = "Freeze UI" })
+
+  section22:AddLabel("<b>Tutorial</b>\nThis feature help you always to keep your mood, your mood will never be negative.", true)
+
+  section22:AddToggle("FreezeUI", {
+    Text = "Freeze UI",
     Default = false,
-    Shortdesc = "You must on the Main menu (do not load your plot) to use this feature!",
+    Tooltip = "You must on the Main menu (do not load your plot) to use this feature!",
     Callback = function(value67)
       pcall(function()
         localPlayer.PlayerGui.MainMenuGui.Enabled = not value67
         localPlayer.PlayerGui.HouseSelectionGUI = not value67
       end)
     end,
-  }, "FreezeUI")
+  })
 
-  local section23 = localValue18.Misc:Section({ Side = "Right" })
-  section23:Header({ Text = "Fake Stats" })
+  local section23 = localValue18.Misc:AddGroupbox({ Side = "Right", Name = "Fake Stats" })
 
-  section23:Input({
-    Name = "Fake Money",
+  section23:AddInput("FakeMoney", {
+    Text = "Fake Money",
     Placeholder = "1000000",
     Callback = function(value68) localValue6.FakeMoney = value68 end,
-  }, "FakeMoney")
+  })
 
-  section23:Input({
-    Name = "Fake Blockbux",
+  section23:AddInput("FakeBlockbux", {
+    Text = "Fake Blockbux",
     Placeholder = "10000",
     Callback = function(value69) localValue6.FakeBlockbux = value69 end,
-  }, "FakeBlockbux")
+  })
 
-  section23:Button({
-    Name = "Apply Fake Stats",
-    Callback = function()
+  section23:AddButton({
+    Text = "Apply Fake Stats",
+    Func = function()
       local findFirstChild7 = replicatedStorage:WaitForChild("Stats"):FindFirstChild(localPlayer.Name)
       if findFirstChild7 then
         local money2 = findFirstChild7:FindFirstChild("Money")
@@ -14790,20 +14720,19 @@ task.spawn(function()
         if blockbux then blockbux.Value = tonumber(localValue6.FakeBlockbux) or 10000 end
       end
     end,
-  }, "ApplyFakeStats")
+  })
 
-  local section24 = localValue18.Misc:Section({ Side = "Left" })
-  section24:Header({ Text = "Car Configuration" })
+  local section24 = localValue18.Misc:AddGroupbox({ Side = "Left", Name = "Car Configuration" })
 
-  section24:Input({
-    Name = "Car Speed",
+  section24:AddInput("CarSpeed", {
+    Text = "Car Speed",
     Placeholder = "1",
     Callback = function(value70) localValue6.CarSpeed = value70 end,
-  }, "CarSpeed")
+  })
 
-  section24:Button({
-    Name = "Set Speed",
-    Callback = function()
+  section24:AddButton({
+    Text = "Set Speed",
+    Func = function()
       local localValue84 = tonumber(localValue6.CarSpeed) or 1
       task.spawn(function()
         while localValue1 do
@@ -14817,21 +14746,20 @@ task.spawn(function()
       end)
       helperFunction1("Car", "Speed set to " .. tostring(localValue6.CarSpeed), 3)
     end,
-  }, "SetCarSpeed")
+  })
 
-  local section25 = localValue18.Misc:Section({ Side = "Right" })
-  section25:Header({ Text = "Player Stats Viewer" })
+  local section25 = localValue18.Misc:AddGroupbox({ Side = "Right", Name = "Player Stats Viewer" })
 
-  local selectPlayerDropdown3 = section25:Dropdown({
-    Name = "Select Player",
-    Options = helperFunction11(),
+  local selectPlayerDropdown3 = section25:AddDropdown("PlayerStatsTarget", {
+    Text = "Select Player",
+    Values = helperFunction11(),
     Default = 1,
     Callback = function(value71) localValue6.PlayerStatsTarget = value71 end,
-  }, "PlayerStatsTarget")
+  })
 
-  section25:Button({
-    Name = "View Player Stats",
-    Callback = function()
+  section25:AddButton({
+    Text = "View Player Stats",
+    Func = function()
       local playerStatsTarget = localValue6.PlayerStatsTarget
       local findFirstChild8 = replicatedStorage:WaitForChild("Stats"):FindFirstChild(playerStatsTarget)
       if not findFirstChild8 then return end
@@ -14857,7 +14785,7 @@ task.spawn(function()
       end
       helperFunction1("Stats of " .. tostring(playerStatsTarget), table.concat(localValue85, "\n"), 10)
     end,
-  }, "ViewPlayerStats")
+  })
 
   task.spawn(function()
     pcall(function()
@@ -14872,53 +14800,58 @@ task.spawn(function()
     end)
   end)
 
-  localValue18.Themes:InsertThemeSection("Left")
-  localValue18.Themes:InsertUISettingsSection("Right")
+  -- ───────── Settings Tab (Webhook + Community) ─────────
+  local section26 = localValue18.Settings:AddGroupbox({ Side = "Right", Name = "Discord Webhook" })
 
-  local section26 = localValue18.Settings:Section({ Side = "Right" })
-  localValue18.Settings:InsertConfigSection("Left")
-
-  section26:Header({ Text = "Discord Webhook" })
-
-  section26:Input({
-    Name = "Webhook URL",
+  section26:AddInput("WebhookURL", {
+    Text = "Webhook URL",
     Placeholder = "https://...",
     Callback = function(value73) localValue6.WebhookURL = value73 end,
-  }, "WebhookURL")
+  })
 
-  section26:Input({
-    Name = "Ping ID",
+  section26:AddInput("PingID", {
+    Text = "Ping ID",
     Placeholder = "<@ID>",
     Callback = function(value74) localValue6.PingID = value74 end,
-  }, "PingID")
+  })
 
-  section26:Button({
-    Name = "Save Webhook",
-    Callback = function()
+  section26:AddButton({
+    Text = "Save Webhook",
+    Func = function()
       writefile("WereToolsWebhook.txt", httpService:JSONEncode({ url = localValue6.WebhookURL, ping = localValue6.PingID }))
     end,
-  }, "SaveWebhook")
+  })
 
   local localValue86 = false
 
-  section26:Toggle({
-    Name = "Auto Send Job Stats",
+  section26:AddToggle("Cfg_AutoHook", {
+    Text = "Auto Send Job Stats",
     Default = false,
     Callback = function(value75) localValue86 = value75 end,
-  }, "Cfg_AutoHook")
+  })
 
-  local section27 = localValue18.Settings:Section({ Side = "Right" })
-  section27:Header({ Text = "Community" })
+  local section27 = localValue18.Settings:AddGroupbox({ Side = "Right", Name = "Community" })
 
-  section27:Button({
-    Name = "Copy Discord Invite",
-    Callback = function() setclipboard("https://discord.gg/weretools") end,
-  }, "CopyDiscordInvite")
+  section27:AddButton({
+    Text = "Copy Discord Invite",
+    Func = function() setclipboard("https://discord.gg/weretools") end,
+  })
 
-  section27:Button({
-    Name = "Alternative Invite",
-    Callback = function() setclipboard("https://discord.gg/hGpWBnVheT") end,
-  }, "AlternativeDiscordInvite")
+  section27:AddButton({
+    Text = "Alternative Invite",
+    Func = function() setclipboard("https://discord.gg/hGpWBnVheT") end,
+  })
+
+  -- ───────── Themes & Save/Config addons ─────────
+  ThemeManager:SetLibrary(Library)
+  ThemeManager:SetFolder("WereTools")
+  ThemeManager:ApplyToTab(localValue18.Themes)
+
+  SaveManager:SetLibrary(Library)
+  SaveManager:IgnoreThemeSettings()
+  SaveManager:SetIgnoreIndexes({})
+  SaveManager:SetFolder("WereTools")
+  SaveManager:BuildConfigSection(localValue18.Settings)
 
   pcall(function()
     local jsonDecode3 = httpService:JSONDecode(readfile("WereToolsWebhook.txt"))
@@ -15024,14 +14957,14 @@ task.spawn(function()
       pcall(function()
         local localValue100 = helperFunction11()
         local localValue101 = helperFunction14()
-        if selectPlayerDropdown and selectPlayerDropdown.SetOptions then
-          selectPlayerDropdown:SetOptions(localValue100)
+        if selectPlayerDropdown and selectPlayerDropdown.SetValues then
+          selectPlayerDropdown:SetValues(localValue100)
         end
-        if selectPlayerDropdown3 and selectPlayerDropdown3.SetOptions then
-          selectPlayerDropdown3:SetOptions(localValue100)
+        if selectPlayerDropdown3 and selectPlayerDropdown3.SetValues then
+          selectPlayerDropdown3:SetValues(localValue100)
         end
-        if selectPlayerDropdown2 and selectPlayerDropdown2.SetOptions then
-          selectPlayerDropdown2:SetOptions(localValue101)
+        if selectPlayerDropdown2 and selectPlayerDropdown2.SetValues then
+          selectPlayerDropdown2:SetValues(localValue101)
         end
       end)
     end
@@ -15045,10 +14978,7 @@ task.spawn(function()
     end
   end)
 
-  localValue18.Main.Select()
-
-  maclib:SetFolder("WereTools")
-  maclib:LoadAutoLoadConfig()
+  SaveManager:LoadAutoloadConfig()
 
   task.wait(0.5)
   localValue15 = false
