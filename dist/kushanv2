@@ -697,7 +697,10 @@ return function(ctx)
           warn("[Save Error] Ground CFrame not found for task: " .. (value8.name or "Unknown"))
         end
         if object.Parent then
-          localValue48.category_hint = object.Parent.Name
+          -- helperFunction13 branches on lowercase category keys ("walls",
+          -- "objects", …); the parent name is title-case ("Walls"), so the
+          -- lookup silently fails on resume and the paint task is dropped.
+          localValue48.category_hint = object.Parent.Name:lower()
         end
         localValue48.object = nil
       elseif value8.object_pos then
@@ -1823,8 +1826,11 @@ return function(ctx)
         localValue99.Text = parameter65
         textLabel5.Text = "Processing: " .. parameter65
       end
-      local current = current2
+      -- Clamp `current` to the pre-computed total so retry rounds (which
+      -- re-increment current2 without raising the total) can't push the
+      -- "N / Total" display or the % progress bar past 100%.
       local total = localValue80
+      local current = math.min(current2, total)
       localValue100.Text = string.format("%d / %d", current, total)
       local frac = 0
       if total > 0 then
@@ -2172,6 +2178,32 @@ return function(ctx)
     }) do
       if type(failedItems[key]) ~= "table" then
         failedItems[key] = {}
+      end
+    end
+
+    -- Pre-filter: vehicles are refused by helperFunction8 (`BSPrice` check).
+    -- If we leave them in `data2.objects` they fail every placement attempt,
+    -- inflate failedItems.objects, and burn retry rounds. Drop them up front
+    -- and surface the count once.
+    if type(data2.objects) == "table" and #data2.objects > 0 then
+      local vehiclesData = localValue21.item_data.Vehicles
+      if type(vehiclesData) == "table" then
+        local kept, skipped = {}, 0
+        for _, obj in ipairs(data2.objects) do
+          if obj.Name and vehiclesData[obj.Name] then
+            skipped = skipped + 1
+          else
+            table.insert(kept, obj)
+          end
+        end
+        if skipped > 0 then
+          data2.objects = kept
+          helperFunction7(
+            "Vehicles skipped",
+            nil,
+            string.format("%d vehicle item(s) skipped (not supported).", skipped)
+          )
+        end
       end
     end
 
@@ -2593,7 +2625,7 @@ return function(ctx)
 
     helperFunction24("Building Walls...", "Placing wall segments")
 
-    for key13, value40 in pairs(data2.walls) do
+    for key13, value40 in ipairs(data2.walls) do
       if localValue2 then
         break
       end
@@ -2664,7 +2696,7 @@ return function(ctx)
     end
     helperFunction24("Building Roofs...", "Placing roofs")
 
-    for key14, value42 in pairs(data2.roofs) do
+    for key14, value42 in ipairs(data2.roofs) do
       if localValue2 then
         break
       end
@@ -2673,7 +2705,7 @@ return function(ctx)
           task.wait(0.1)
         end
         local points = {}
-        for _, pt in pairs(value42.Points) do
+        for _, pt in ipairs(value42.Points) do
           table.insert(points, localValue22.get_world_space(localValue22.table_to_vec3(pt)))
         end
         local settings = { Type = value42.Type or "Flat Roof", IsPreview = false, RotateNum = 0 }
@@ -2715,7 +2747,7 @@ return function(ctx)
     end
 
     helperFunction24("Building Basements...", "Placing basements")
-    for key17, value46 in pairs(data2.basements) do
+    for key17, value46 in ipairs(data2.basements) do
       if localValue2 then
         break
       end
@@ -2748,7 +2780,7 @@ return function(ctx)
     end
 
     helperFunction24("Building Floors...", "Placing floors")
-    for key18, value47 in pairs(data2.floors) do
+    for key18, value47 in ipairs(data2.floors) do
       if localValue2 then
         break
       end
@@ -2757,7 +2789,7 @@ return function(ctx)
       end
       if not helperFunction32("floors", key18) then
         local points = {}
-        for _, pt in pairs(value47.Points) do
+        for _, pt in ipairs(value47.Points) do
           table.insert(points, localValue22.get_world_space(localValue22.table_to_vec3(pt)))
         end
         local result = helperFunction26(function(...)
@@ -2795,7 +2827,7 @@ return function(ctx)
     end
 
     helperFunction24("Building Paths...", "Placing paths")
-    for key20, value50 in pairs(data2.paths) do
+    for key20, value50 in ipairs(data2.paths) do
       if localValue2 then
         break
       end
@@ -2841,7 +2873,7 @@ return function(ctx)
     end
 
     helperFunction24("Building Counters...", "Placing counters")
-    for key21, value52 in pairs(data2.counters) do
+    for key21, value52 in ipairs(data2.counters) do
       if localValue2 then
         break
       end
@@ -2950,7 +2982,7 @@ return function(ctx)
     end
 
     helperFunction24("Building Fences...", "Placing fences")
-    for key22, value55 in pairs(data2.fences) do
+    for key22, value55 in ipairs(data2.fences) do
       if localValue2 then
         break
       end
@@ -2997,7 +3029,7 @@ return function(ctx)
     end
 
     helperFunction24("Building Pools...", "Placing pools")
-    for key23, value58 in pairs(data2.pools) do
+    for key23, value58 in ipairs(data2.pools) do
       if localValue2 then
         break
       end
@@ -3124,10 +3156,14 @@ return function(ctx)
           break
         end
         local points = {}
-        for _, pt in pairs(value66.Points) do
+        for _, pt in ipairs(value66.Points) do
           table.insert(points, localValue22.get_world_space(localValue22.table_to_vec3(pt)))
         end
-        local settings = { Type = value66.Type or "Flat Roof", IsPreview = true, RotateNum = 0 }
+        -- IsPreview was `true` here historically. A preview placement never
+        -- commits server-side, so this retry round placed the roof as a
+        -- ghost and still counted it as "fixed", leaving the real roof
+        -- missing from the build. Match the first pass.
+        local settings = { Type = value66.Type or "Flat Roof", IsPreview = false, RotateNum = 0 }
         for k, v in pairs(value66) do
           if type(v) == "number" then
             settings[k] = v
@@ -3169,7 +3205,7 @@ return function(ctx)
           break
         end
         local points = {}
-        for _, pt in pairs(value70.Points) do
+        for _, pt in ipairs(value70.Points) do
           table.insert(points, localValue22.get_world_space(localValue22.table_to_vec3(pt)))
         end
         local result = helperFunction26(function(...)
