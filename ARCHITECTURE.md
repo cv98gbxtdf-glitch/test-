@@ -104,12 +104,12 @@ cleanly.
 
 | PR  | Scope                                                                 | Status  |
 |-----|-----------------------------------------------------------------------|---------|
-| A   | Pipeline: Rokit, Lune bundler, Selene, StyLua, CI, docs. No behaviour | **in**  |
-| B   | Extract the 32 inline modules + bootstrap + UI into `src/`            | pending |
-| C   | Core services (`ctx`), config layer, drop `_G`/`getgenv` internals    | pending |
-| D   | `BuildModule`/`PreviewBuild` split + rename + correctness fixes       | pending |
-| E   | UI componentisation: one file per tab, declarative builders           | pending |
-| F   | Tests (Lune), type stubs (`.d.luau`), public API doc                  | pending |
+| A   | Pipeline: Rokit, Lune bundler, Selene, StyLua, CI, docs                | **in**  |
+| B   | Extract the 32 inline modules + bootstrap + UI into `src/`             | **in**  |
+| C   | Core services (`ctx`), config layer, drop `_G`/`getgenv` internals     | pending |
+| D   | `BuildModule`/`PreviewBuild` split + rename + correctness fixes        | pending |
+| E   | UI componentisation: one file per tab, declarative builders            | pending |
+| F   | Tests (Lune), type stubs (`.d.luau`), public API doc                   | pending |
 
 ## What goes away
 

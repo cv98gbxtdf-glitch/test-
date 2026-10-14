@@ -24,21 +24,21 @@ local ENTRY = "init"
 type Module = { key: string, path: string }
 
 local function discover(dir: string, prefix: string): { Module }
-    local out: { Module } = {}
-    for _, entry in ipairs(fs.readDir(dir)) do
-        local full = dir .. "/" .. entry
-        if fs.isDir(full) then
-            local sub = if prefix == "" then entry else (prefix .. "/" .. entry)
-            for _, m in ipairs(discover(full, sub)) do
-                table.insert(out, m)
-            end
-        elseif entry:sub(-4) == ".lua" then
-            local name = entry:sub(1, -5)
-            local key = if prefix == "" then name else (prefix .. "/" .. name)
-            table.insert(out, { key = key, path = full })
-        end
+  local out: { Module } = {}
+  for _, entry in ipairs(fs.readDir(dir)) do
+    local full = dir .. "/" .. entry
+    if fs.isDir(full) then
+      local sub = if prefix == "" then entry else (prefix .. "/" .. entry)
+      for _, m in ipairs(discover(full, sub)) do
+        table.insert(out, m)
+      end
+    elseif entry:sub(-4) == ".lua" then
+      local name = entry:sub(1, -5)
+      local key = if prefix == "" then name else (prefix .. "/" .. name)
+      table.insert(out, { key = key, path = full })
     end
-    return out
+  end
+  return out
 end
 
 local HEADER = [[
@@ -50,70 +50,67 @@ local _CACHE = {}
 local _LOADING = {}
 
 local function _require(name)
-    local cached = _CACHE[name]
-    if cached ~= nil then
-        return cached
-    end
-    if _LOADING[name] then
-        error("Circular require: " .. tostring(name), 2)
-    end
-    local factory = _MODULES[name]
-    if not factory then
-        error("Module not found: " .. tostring(name), 2)
-    end
-    _LOADING[name] = true
-    local ok, result = pcall(factory, _require)
-    _LOADING[name] = nil
-    if not ok then
-        error(result, 2)
-    end
-    if result == nil then
-        result = true
-    end
-    _CACHE[name] = result
-    return result
+  local cached = _CACHE[name]
+  if cached ~= nil then
+    return cached
+  end
+  if _LOADING[name] then
+    error("Circular require: " .. tostring(name), 2)
+  end
+  local factory = _MODULES[name]
+  if not factory then
+    error("Module not found: " .. tostring(name), 2)
+  end
+  _LOADING[name] = true
+  local ok, result = pcall(factory, _require)
+  _LOADING[name] = nil
+  if not ok then
+    error(result, 2)
+  end
+  if result == nil then
+    result = true
+  end
+  _CACHE[name] = result
+  return result
 end
 ]]
 
 local function emit(modules: { Module }): string
-    local chunks: { string } = { HEADER }
-    table.sort(modules, function(a: Module, b: Module)
-        return a.key < b.key
-    end)
-    for _, m in ipairs(modules) do
-        local src = fs.readFile(m.path)
-        if src:sub(-1) == "\n" then
-            src = src:sub(1, -2)
-        end
-        table.insert(
-            chunks,
-            string.format("_MODULES[%q] = function(require)\n%s\nend\n", m.key, src)
-        )
+  local chunks: { string } = { HEADER }
+  table.sort(modules, function(a: Module, b: Module)
+    return a.key < b.key
+  end)
+  for _, m in ipairs(modules) do
+    local src = fs.readFile(m.path)
+    if src:sub(-1) == "\n" then
+      src = src:sub(1, -2)
     end
-    table.insert(chunks, string.format("_require(%q)\n", ENTRY))
-    return table.concat(chunks, "\n")
+    table.insert(chunks, string.format("_MODULES[%q] = function(require)\n%s\nend\n", m.key, src))
+  end
+  table.insert(chunks, string.format("_require(%q)\n", ENTRY))
+  return table.concat(chunks, "\n")
 end
 
 local modules = discover(SRC_DIR, "")
 if #modules == 0 then
-    stdio.ewrite("No modules found under " .. SRC_DIR .. "/\n")
-    process.exit(1)
+  stdio.ewrite("No modules found under " .. SRC_DIR .. "/\n")
+  process.exit(1)
 end
 
 local hasEntry = false
 for _, m in ipairs(modules) do
-    if m.key == ENTRY then
-        hasEntry = true
-        break
-    end
+  if m.key == ENTRY then
+    hasEntry = true
+    break
+  end
 end
 if not hasEntry then
-    stdio.ewrite("No entry module at src/init.lua\n")
-    process.exit(1)
+  stdio.ewrite("No entry module at src/init.lua\n")
+  process.exit(1)
 end
 
 if not fs.isDir(DIST_DIR) then
-    fs.writeDir(DIST_DIR)
+  fs.writeDir(DIST_DIR)
 end
 
 local output = emit(modules)

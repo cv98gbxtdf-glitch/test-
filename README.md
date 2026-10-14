@@ -52,7 +52,14 @@ lune run /tmp/kushanv2.lua
 ## Shipping
 
 End users load the script by `loadstring(game:HttpGet(RAW_URL))()`.
-Point `RAW_URL` at `dist/kushanv2` on this branch.
+`RAW_URL` points at `dist/kushanv2`:
+
+```
+https://raw.githubusercontent.com/cv98gbxtdf-glitch/test-/<branch>/dist/kushanv2
+```
+
+> **Note:** before PR B, the shipped URL was the root `kushanv2`. That path
+> is gone; update any existing loadstring snippets to point at `dist/kushanv2`.
 
 ## Architecture
 
