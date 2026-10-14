@@ -1,0 +1,4 @@
+# PR A: no Roblox code in src/ yet, so the bundled Luau std is enough.
+# PR B will switch to `std = "roblox+executor"` with an offline-cached std file
+# and a custom std for executor-only globals (getgenv, getconnections, syn, …).
+std = "luau"
