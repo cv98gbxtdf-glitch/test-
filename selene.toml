@@ -1,0 +1,19 @@
+# Luau std plus permissive settings for executor + deobfuscated code.
+# PR C swaps this for `std = "roblox+executor"` with an offline-cached
+# roblox.yml and a hand-written executor.yml covering getgenv, getconnections,
+# syn, request, debug.getupvalue, etc.
+std = "luau"
+
+# Everything below is a deliberate escape hatch for the mechanical extraction
+# in PR B. Each lint flags a real smell in the deobfuscated code (variables
+# named `index` never read, bare globals, dead branches, variable reuse) and
+# gets re-enabled as later PRs rewrite the modules they're inside.
+[lints]
+undefined_variable = "allow"           # executor + Roblox globals
+incorrect_standard_library_use = "allow" # debug.getupvalue(s)/getinfo
+global_usage = "allow"                 # top-level `function foo()` as module API
+if_same_then_else = "allow"            # deobf dead-equal branches
+unused_variable = "allow"              # `for index, value in …`
+unscoped_variables = "allow"           # deobf dropped `local` on many assignments
+empty_if = "allow"                     # deobf empty branches
+shadowing = "allow"                    # localValueN reuse

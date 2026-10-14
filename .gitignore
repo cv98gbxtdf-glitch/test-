@@ -1,0 +1,7 @@
+# Rokit-managed toolchain
+.rokit/
+
+# Scratch
+*.tmp
+*.bak
+.DS_Store
