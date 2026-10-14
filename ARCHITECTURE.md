@@ -110,6 +110,9 @@ cleanly.
 | D   | `BuildModule` correctness fixes (D1) + reliability (D2)                | **in**  |
 | D-split | `BuildModule`/`PreviewBuild` file split + rename                   | pending |
 | E   | UI componentisation: one file per tab (+ loops.lua)                    | **in**  |
+| F   | FrontObjects load + docs/API.md + src/types.luau                       | **in**  |
+| D-split | `BuildModule` placement/retry/progress-ui files + rename           | pending |
+| G   | Scaffold-first mode, Lune tests, more rename passes                    | pending |
 | E   | UI componentisation: one file per tab, declarative builders            | pending |
 | F   | Tests (Lune), type stubs (`.d.luau`), public API doc                   | pending |
 

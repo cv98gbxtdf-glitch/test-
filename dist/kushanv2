@@ -3152,6 +3152,35 @@ return function(ctx)
       end
     end
 
+    -- FrontObjects phase. The save path captures Mailbox and Trash (name,
+    -- CFrame, color). Both come pre-placed on every plot, so loading them
+    -- means applying the saved color to the existing instance. Position is
+    -- left alone (every plot's layout is the same; repositioning the
+    -- mailbox risks server-side rejection).
+    if type(data2.frontObjects) == "table" then
+      helperFunction24("Front Objects...", "Applying mailbox/trash colors")
+      for objName, entry in pairs(data2.frontObjects) do
+        if localValue2 then
+          break
+        end
+        if type(entry) == "table" and entry.Color then
+          local target = localValue126:FindFirstChild(objName, true)
+            or localValue126.Parent:FindFirstChild(objName, true)
+          if target and localValue21.color_service:GetDefaultColors(target) then
+            local defaults = localValue21.color_service:GetDefaultColors(target)
+            if not helperFunction29(defaults, entry.Color) then
+              helperFunction34({
+                type = "color",
+                object = target,
+                color = entry.Color,
+                name = objName,
+              })
+            end
+          end
+        end
+      end
+    end
+
     -- Retry phase: rebuild anything in failedItems
     local function retryFailed()
       local total = 0
