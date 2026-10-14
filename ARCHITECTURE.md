@@ -106,7 +106,7 @@ cleanly.
 |-----|-----------------------------------------------------------------------|---------|
 | A   | Pipeline: Rokit, Lune bundler, Selene, StyLua, CI, docs                | **in**  |
 | B   | Extract the 32 inline modules + bootstrap + UI into `src/`             | **in**  |
-| C   | Core services (`ctx`), config layer, drop `_G`/`getgenv` internals     | pending |
+| C   | Core services (`ctx`), config layer, factory module pattern            | **in**  |
 | D   | `BuildModule`/`PreviewBuild` split + rename + correctness fixes        | pending |
 | E   | UI componentisation: one file per tab, declarative builders            | pending |
 | F   | Tests (Lune), type stubs (`.d.luau`), public API doc                   | pending |
