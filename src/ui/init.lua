@@ -19,9 +19,22 @@ return function(ctx)
     end
 
     getgenv().WereTools_Obsidian_Instance = true
-    local localValue1 = true
+
+    -- Shared mutable flags. Primitives that need to be observed across tab
+    -- boundaries and by background loops live here as table fields (closures
+    -- see mutations through the table reference, which they can't do for
+    -- plain local primitives).
+    local flags = {
+      running = true,
+      uiQuiet = true,
+      webhookEnabled = false,
+    }
+    -- Shared dropdown handles. Tabs assign on creation; the dropdown refresh
+    -- loop reads via `env.dropdowns` to call `:SetValues` with fresh data.
+    local dropdowns = { players = nil, build = nil, stats = nil }
+
     getgenv().WereTools_StopLoops = function()
-      localValue1 = false
+      flags.running = false
     end
     local localPlayer = players.LocalPlayer
     local wereToolsModules = ctx.modules
@@ -79,7 +92,6 @@ return function(ctx)
     local localValue12 = 0
     local localValue13 = true
     local localValue14 = false
-    local localValue15 = true
     local localValue16 = {}
 
     pcall(function()
@@ -126,7 +138,7 @@ return function(ctx)
     })
 
     local function helperFunction1(title, description, parameter1)
-      if localValue15 then
+      if flags.uiQuiet then
         return
       end
       pcall(function()
@@ -139,7 +151,7 @@ return function(ctx)
     end
 
     local function helperFunction2()
-      if localValue15 then
+      if flags.uiQuiet then
         return
       end
       Library:Notify({
@@ -414,7 +426,7 @@ return function(ctx)
 
     task.spawn(function()
       while task.wait(20) do
-        if not localValue1 then
+        if not flags.running then
           break
         end
         pcall(function()
@@ -455,7 +467,7 @@ return function(ctx)
 
     task.spawn(function()
       while task.wait(25) do
-        if not localValue1 then
+        if not flags.running then
           break
         end
         pcall(function()
@@ -624,7 +636,7 @@ return function(ctx)
       true
     )
 
-    local selectPlayerDropdown = section7:AddDropdown("WrapPlayer", {
+    dropdowns.players = section7:AddDropdown("WrapPlayer", {
       Text = "Select Player",
       Values = helperFunction11(),
       Default = 1,
@@ -738,7 +750,7 @@ return function(ctx)
           return
         end
         task.spawn(function()
-          while localValue10 and localValue1 do
+          while localValue10 and flags.running do
             task.wait(1)
             if localValue11 then
               if os.time() >= localValue12 then
@@ -884,7 +896,7 @@ return function(ctx)
             return
           end
           localValue53 = task.spawn(function()
-            while localValue9 and localValue1 do
+            while localValue9 and flags.running do
               local skill = localValue6.Skill or "Cooking"
               if skillModule and skillModule[skill] then
                 pcall(skillModule[skill])
@@ -946,7 +958,7 @@ return function(ctx)
         localValue8 = value33
         if value33 then
           task.spawn(function()
-            while localValue8 and localValue1 do
+            while localValue8 and flags.running do
               task.wait(5)
               if not localValue8 then
                 break
@@ -1076,7 +1088,7 @@ return function(ctx)
         if value41 then
           localValue55 = false
           localValue56 = task.spawn(function()
-            while localValue7 and localValue1 do
+            while localValue7 and flags.running do
               local localValue57, localValue58 = pcall(function()
                 local moodTrigger = localValue6.MoodTrigger or 10
                 local moodTarget = localValue6.MoodTarget or 90
@@ -1219,7 +1231,7 @@ return function(ctx)
       return localValue68
     end
 
-    local selectPlayerDropdown2 = section13:AddDropdown("BuildSelectPlayer", {
+    dropdowns.build = section13:AddDropdown("BuildSelectPlayer", {
       Text = "Select Player",
       Values = helperFunction14(),
       Default = 1,
@@ -1594,7 +1606,7 @@ return function(ctx)
       Default = true,
       Callback = function(value58)
         task.spawn(function()
-          while value58 and localValue1 do
+          while value58 and flags.running do
             local character3 = localPlayer.Character
             if character3 then
               local humanoid2 = character3:FindFirstChild("Humanoid")
@@ -1834,7 +1846,7 @@ return function(ctx)
       Func = function()
         local localValue84 = tonumber(localValue6.CarSpeed) or 1
         task.spawn(function()
-          while localValue1 do
+          while flags.running do
             local character4 = localPlayer.Character
             if character4 then
               local humanoid3 = character4:FindFirstChild("Humanoid")
@@ -1852,7 +1864,7 @@ return function(ctx)
     local section25 =
       localValue18.Misc:AddGroupbox({ Side = "Right", Name = "Player Stats Viewer" })
 
-    local selectPlayerDropdown3 = section25:AddDropdown("PlayerStatsTarget", {
+    dropdowns.stats = section25:AddDropdown("PlayerStatsTarget", {
       Text = "Select Player",
       Values = helperFunction11(),
       Default = 1,
@@ -1947,13 +1959,11 @@ return function(ctx)
       end,
     })
 
-    local localValue86 = false
-
     section26:AddToggle("Cfg_AutoHook", {
       Text = "Auto Send Job Stats",
       Default = false,
       Callback = function(value75)
-        localValue86 = value75
+        flags.webhookEnabled = value75
       end,
     })
 
@@ -1984,196 +1994,24 @@ return function(ctx)
     SaveManager:SetFolder("WereTools")
     SaveManager:BuildConfigSection(localValue18.Settings)
 
-    pcall(function()
-      local jsonDecode3 = httpService:JSONDecode(readfile("WereToolsWebhook.txt"))
-      localValue6.WebhookURL = jsonDecode3.url
-      localValue6.PingID = jsonDecode3.ping
-    end)
-
-    task.spawn(function()
-      local localValue87 = 0
-      local localValue88 = -1
-
-      while localValue1 do
-        task.wait(5)
-        if not localValue86 then
-        else
-          pcall(function()
-            if tick() - localValue87 < 15 then
-              return
-            else
-              local localValue89 = replicatedStorage:FindFirstChild("Stats")
-              if localValue89 and localValue89:FindFirstChild(localPlayer.Name) then
-                local localValue90 = localValue89[localPlayer.Name]
-                local job3 = localValue90:FindFirstChild("Job")
-                if job3 then
-                  local value76 = job3.Value or "None"
-                  local value77 = job3:FindFirstChild("ShiftEarnings") and job3.ShiftEarnings.Value
-                  local efficiency = job3:FindFirstChild("Efficiency")
-                  local localValue91 = value77 or 0
-                  local value78 = efficiency and job3.Efficiency.Value or 0
-                  local money4 = localValue90:FindFirstChild("Money")
-                  local blockbux3 = localValue90:FindFirstChild("Blockbux")
-                  local value79 = money4 and money4.Value or 0
-                  local value80 = blockbux3 and blockbux3.Value or 0
-                  local localValue92, localValue93, localValue94, localValue95, localValue96 =
-                    helperFunction12()
-                  local localValue97 = 0
-                  if money4 and 0 then
-                    localValue97 = value79 - 0
-                    if localValue97 < 0 then
-                      localValue97 = 0
-                    end
-                  end
-                  if localValue91 > 0 and localValue91 ~= localValue88 then
-                    localValue87 = tick()
-                    localValue88 = localValue91
-                    local localValue98 = request or http_request or syn and syn.request
-                    if localValue98 and localValue6.WebhookURL ~= "" then
-                      local localValue99 = {
-                        content = localValue6.PingID
-                            and localValue6.PingID ~= ""
-                            and localValue6.PingID
-                          or "",
-                        username = "Were Tools WebHook",
-                        avatar_url = "https://imagizer.imageshack.com/img924/3550/syF2Vn.png",
-                        embeds = {
-                          {
-                            title = "Were Tools Stats",
-                            color = 1752220,
-                            fields = {
-                              { name = "Current Job", value = tostring(value76), inline = true },
-                              {
-                                name = "Shift Earnings",
-                                value = "$" .. tostring(localValue91),
-                                inline = true,
-                              },
-                              {
-                                name = "Efficiency",
-                                value = tostring(value78) .. "%",
-                                inline = true,
-                              },
-                              {
-                                name = "Total Pay (Session)",
-                                value = "$" .. tostring(localValue97),
-                                inline = true,
-                              },
-                              { name = "Money", value = "$" .. tostring(value79), inline = true },
-                              { name = "Blockbux", value = tostring(value80), inline = true },
-                              {
-                                name = "----- MOOD DATA -----",
-                                value = "**MOOD DATA**",
-                                inline = false,
-                              },
-                              {
-                                name = "Overall",
-                                value = tostring(localValue92) .. "%",
-                                inline = true,
-                              },
-                              {
-                                name = "Energy",
-                                value = tostring(localValue93) .. "%",
-                                inline = true,
-                              },
-                              {
-                                name = "Fun",
-                                value = tostring(localValue94) .. "%",
-                                inline = true,
-                              },
-                              {
-                                name = "Hunger",
-                                value = tostring(localValue95) .. "%",
-                                inline = true,
-                              },
-                              {
-                                name = "Hygiene",
-                                value = tostring(localValue96) .. "%",
-                                inline = true,
-                              },
-                            },
-                            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-                          },
-                        },
-                      }
-                      localValue98({
-                        Url = localValue6.WebhookURL,
-                        Method = "POST",
-                        Headers = { ["Content-Type"] = "application/json" },
-                        Body = httpService:JSONEncode(localValue99),
-                      })
-                    end
-                  end
-                end
-              end
-              return
-            end
-          end)
-        end
-      end
-    end)
-
-    task.spawn(function()
-      while localValue1 do
-        task.wait(600)
-        if localValue3 == "" then
-          break
-        end
-        auth._req_01(localValue3, auth._sys_id(), function(parameter9, parameter10)
-          if parameter9 and auth._sec_02(parameter10._validationProof) then
-            ctx.auth:setSessionToken(parameter10.session_token)
-          else
-            auth._io_d()
-          end
-        end)
-      end
-    end)
-
-    task.spawn(function()
-      while localValue1 do
-        task.wait(30)
-        pcall(function()
-          local localValue100 = helperFunction11()
-          local localValue101 = helperFunction14()
-          if selectPlayerDropdown and selectPlayerDropdown.SetValues then
-            selectPlayerDropdown:SetValues(localValue100)
-          end
-          if selectPlayerDropdown3 and selectPlayerDropdown3.SetValues then
-            selectPlayerDropdown3:SetValues(localValue100)
-          end
-          if selectPlayerDropdown2 and selectPlayerDropdown2.SetValues then
-            selectPlayerDropdown2:SetValues(localValue101)
-          end
-        end)
-      end
-    end)
-
-    pcall(function()
-      local jsonDecode4 = httpService:JSONDecode(readfile("WereTools_AutoHop.json"))
-      if jsonDecode4 then
-        localValue6.HouseFinderValue = tostring(jsonDecode4.value or "0")
-        localValue6.HopDelay = tostring(jsonDecode4.HopDelay or "15")
-      end
-    end)
-
-    SaveManager:LoadAutoloadConfig()
-
-    task.wait(0.5)
-    localValue15 = false
-
-    local localValue102
-
-    localValue102 = hookmetamethod(game, "__namecall", function(parameter11, ...)
-      local localValue103 = getnamecallmethod()
-      local localValue104 = ...
-      if not checkcaller() and localValue103 == "FireServer" then
-        if type(localValue104) == "table" then
-          if localValue104.Type == "LookDir" then
-            return
-          end
-        end
-        return localValue102(parameter11, ...)
-      end
-      return localValue102(parameter11, ...)
-    end)
+    local env = {
+      ctx = ctx,
+      httpService = httpService,
+      replicatedStorage = replicatedStorage,
+      localPlayer = localPlayer,
+      SaveManager = SaveManager,
+      flags = flags,
+      cfg = localValue6,
+      dropdowns = dropdowns,
+      auth = auth,
+      keyRef = localValue3,
+      helpers = {
+        notify = helperFunction1,
+        listPlayers = helperFunction11,
+        listPlotPlayers = helperFunction14,
+        pollMood = helperFunction12,
+      },
+    }
+    require("ui/loops")(env)
   end)
 end

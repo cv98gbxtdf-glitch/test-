@@ -109,6 +109,7 @@ cleanly.
 | C   | Core services (`ctx`), config layer, factory module pattern            | **in**  |
 | D   | `BuildModule` correctness fixes (D1) + reliability (D2)                | **in**  |
 | D-split | `BuildModule`/`PreviewBuild` file split + rename                   | pending |
+| E   | UI loops/finalisation → `src/ui/loops.lua` (first slice of UI split)   | **in**  |
 | E   | UI componentisation: one file per tab, declarative builders            | pending |
 | F   | Tests (Lune), type stubs (`.d.luau`), public API doc                   | pending |
 
