@@ -2175,6 +2175,73 @@ return function(ctx)
     end
 
     local localValue126 = activePlot
+
+    -- Preflight: every placement remote the loader relies on must be
+    -- resolvable before we start, or a single Bloxburg rename breaks the
+    -- build silently halfway through (the loader catches the error per
+    -- placement, so you only see it after dozens of failures).
+    do
+      local REQUIRED_REMOTES = {
+        "PlaceWall",
+        "PlaceObject",
+        "PlaceRoof",
+        "PlaceFloor",
+        "PlacePath",
+        "PlacePool",
+        "PlaceBasement",
+        "ColorObject",
+        "SetPicture",
+        "TransformObject",
+        "ResizeObject",
+      }
+      local missing = {}
+      for _, name in ipairs(REQUIRED_REMOTES) do
+        if not localValue5[name] then
+          table.insert(missing, name)
+        end
+      end
+      if #missing > 0 then
+        helperFunction24("Error", "Missing remotes: " .. table.concat(missing, ", "))
+        helperFunction7(
+          "Preflight failed",
+          "rbxthumb://type=Asset&id=119978200516532&w=420&h=420",
+          "The game's placement remotes have changed. Script needs updating.\n"
+            .. "Missing: "
+            .. table.concat(missing, ", ")
+        )
+        if wereBuildUI2.Parent then
+          wereBuildUI2:Destroy()
+        end
+        return
+      end
+    end
+
+    -- Per-item attempt tracking. Each failedItems entry carries a hidden
+    -- `_attempts` counter; when it reaches `maxItemAttempts` the item is
+    -- parked in `permanentFailures` instead of being requeued for yet
+    -- another retry round. Pathological items (missing gamepass, bad name,
+    -- Bloxburg-side renames) can no longer burn every retry round.
+    local maxItemAttempts = localValue88 + 1 -- initial try + N retries
+    local permanentFailures = {
+      walls = {},
+      roofs = {},
+      basements = {},
+      floors = {},
+      paths = {},
+      counters = {},
+      fences = {},
+      pools = {},
+      objects = {},
+    }
+    local function requeueOrPark(category, item)
+      item._attempts = (item._attempts or 0) + 1
+      if item._attempts >= maxItemAttempts then
+        table.insert(permanentFailures[category], item)
+      else
+        table.insert(failedItems[category], item)
+      end
+    end
+
     local helperFunction31
     function helperFunction31(parameter74, parameter75)
       completedKeys2[parameter74 .. "_" .. parameter75] = true
@@ -2384,7 +2451,7 @@ return function(ctx)
           helperFunction27(parameter83.Name or "Object")
         else
           helperFunction27((parameter83.Name or "Item") .. " (Item)")
-          table.insert(failedItems.objects, { data = parameter83, parent = parameter84 })
+          requeueOrPark("objects", { data = parameter83, parent = parameter84 })
         end
       end
 
@@ -2574,7 +2641,7 @@ return function(ctx)
         else
           parameter89[1] = parameter89[1] + 1
           helperFunction27("(Objects)")
-          table.insert(failedItems.objects, { data = parameter87, parent = parameter88 })
+          requeueOrPark("objects", { data = parameter87, parent = parameter88 })
         end
         if parameter87.Objects then
           for index26, value38 in ipairs(parameter87.Objects) do
@@ -2649,7 +2716,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.walls, value40)
+          requeueOrPark("walls", value40)
           helperFunction27("Wall #" .. tostring(value40.id) .. " (Wall)")
         end
       end
@@ -2707,7 +2774,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.roofs, value42)
+          requeueOrPark("roofs", value42)
           helperFunction27((value42.Type or "Roof") .. " (Roofs)")
         end
       end
@@ -2740,7 +2807,7 @@ return function(ctx)
           helperFunction27("Basement")
           helperFunction31("basements", key17)
         else
-          table.insert(failedItems.basements, value46)
+          requeueOrPark("basements", value46)
           helperFunction27("Basement")
         end
       end
@@ -2787,7 +2854,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.floors, value47)
+          requeueOrPark("floors", value47)
           helperFunction27("Floor")
         end
       end
@@ -2833,7 +2900,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.paths, value50)
+          requeueOrPark("paths", value50)
           helperFunction27("(Path)")
         end
       end
@@ -2942,7 +3009,7 @@ return function(ctx)
           end
         else
           helperFunction27("(Counter)")
-          table.insert(failedItems.counters, value52)
+          requeueOrPark("counters", value52)
           task.wait(0.5)
         end
       end
@@ -2989,7 +3056,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.fences, value55)
+          requeueOrPark("fences", value55)
           helperFunction27("(Fence)")
         end
       end
@@ -3036,7 +3103,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.pools, value58)
+          requeueOrPark("pools", value58)
           helperFunction27("(Pools)")
         end
       end
@@ -3111,7 +3178,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.walls, value63)
+          requeueOrPark("walls", value63)
         end
       end
 
@@ -3160,7 +3227,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.roofs, value66)
+          requeueOrPark("roofs", value66)
         end
       end
 
@@ -3195,7 +3262,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.floors, value70)
+          requeueOrPark("floors", value70)
         end
       end
 
@@ -3256,7 +3323,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.fences, value74)
+          requeueOrPark("fences", value74)
         end
       end
 
@@ -3291,7 +3358,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.pools, value76)
+          requeueOrPark("pools", value76)
         end
       end
 
@@ -3385,7 +3452,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.counters, value81)
+          requeueOrPark("counters", value81)
         end
       end
 
@@ -3425,7 +3492,7 @@ return function(ctx)
             end
           end
         else
-          table.insert(failedItems.paths, value79)
+          requeueOrPark("paths", value79)
         end
       end
 
@@ -3538,8 +3605,47 @@ return function(ctx)
     for _, failures in pairs(failedItems) do
       remainingFailures = remainingFailures + #failures
     end
+    local permanentCount = 0
+    for _, failures in pairs(permanentFailures) do
+      permanentCount = permanentCount + #failures
+    end
 
-    if localValue2 or remainingFailures > 0 then
+    -- Post-mortem dump: write every item that didn't make it (both the
+    -- retry-exhausted ones and anything still in failedItems) to
+    -- `WereTools_UnplacedItems.json` so the user can see WHY the build is
+    -- incomplete after the fact instead of guessing at the UI counter.
+    if remainingFailures + permanentCount > 0 then
+      local dump = { permanent = {}, remaining = {} }
+      local function summarise(entry)
+        local data = entry.data or entry
+        return {
+          name = data.Name or "<unnamed>",
+          attempts = entry._attempts or data._attempts,
+          position = data.Position or data.Center or data.From,
+        }
+      end
+      for category, list in pairs(permanentFailures) do
+        if #list > 0 then
+          dump.permanent[category] = {}
+          for _, item in ipairs(list) do
+            table.insert(dump.permanent[category], summarise(item))
+          end
+        end
+      end
+      for category, list in pairs(failedItems) do
+        if #list > 0 then
+          dump.remaining[category] = {}
+          for _, item in ipairs(list) do
+            table.insert(dump.remaining[category], summarise(item))
+          end
+        end
+      end
+      pcall(function()
+        writefile("WereTools_UnplacedItems.json", httpService:JSONEncode(dump))
+      end)
+    end
+
+    if localValue2 or remainingFailures > 0 or permanentCount > 0 then
       helperFunction12(
         data2,
         completedKeys2,
@@ -3558,10 +3664,25 @@ return function(ctx)
           "Progress saved. Use Continue Build to resume."
         )
       else
-        local message = string.format(
-          "%d items could not be placed. Progress saved for retry.",
-          remainingFailures
-        )
+        local message
+        if permanentCount > 0 and remainingFailures > 0 then
+          message = string.format(
+            "%d items could not be placed (%d permanently). See WereTools_UnplacedItems.json for details.",
+            remainingFailures + permanentCount,
+            permanentCount
+          )
+        elseif permanentCount > 0 then
+          message = string.format(
+            "%d items could not be placed after %d retries. See WereTools_UnplacedItems.json.",
+            permanentCount,
+            maxItemAttempts - 1
+          )
+        else
+          message = string.format(
+            "%d items could not be placed. Progress saved for retry.",
+            remainingFailures
+          )
+        end
         helperFunction24("Finished with failures", message)
         helperFunction7(
           "Build Incomplete",
