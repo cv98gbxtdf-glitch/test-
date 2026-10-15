@@ -1,8 +1,0 @@
-# Toolchain pins for this repo.
-# Install with: rokit install
-# https://github.com/rojo-rbx/rokit
-
-[tools]
-lune = "lune-org/lune@0.9.3"
-selene = "Kampfkarren/selene@0.29.0"
-stylua = "JohnnyMorganz/stylua@0.20.0"
